@@ -43,7 +43,6 @@
 #include <utility>
 #include <vector>
 
-
 namespace WTL {
 using std::max;
 using std::min;
@@ -75,7 +74,6 @@ extern WTL::CAppModule _Module;
 #include <atltheme.h>
 #include <atlwin.h>
 
-
 #include "nformat.hpp"
 #include "path.hpp"
 
@@ -84,7 +82,6 @@ extern WTL::CAppModule _Module;
 #include "NtUserCallHook.hpp"
 #include "ShellItemIDList.hpp"
 #include "string_matcher.hpp"
-
 
 #include "resource.h"
 
@@ -983,15 +980,12 @@ long global_exception_handler(struct _EXCEPTION_POINTERS *ExceptionInfo) {
   long result;
   if (ExceptionInfo->ExceptionRecord->ExceptionCode ==
           0x40010006 /*DBG_PRINTEXCEPTION_C*/
-      ||
-      ExceptionInfo->ExceptionRecord->ExceptionCode ==
-          0x4001000A /*DBG_PRINTEXCEPTION_WIDE_C*/
-      ||
-      ExceptionInfo->ExceptionRecord->ExceptionCode ==
-          0xE06D7363 /*C++ exception*/
-      ||
-      ExceptionInfo->ExceptionRecord->ExceptionCode ==
-          RPC_S_SERVER_UNAVAILABLE) {
+      || ExceptionInfo->ExceptionRecord->ExceptionCode ==
+             0x4001000A /*DBG_PRINTEXCEPTION_WIDE_C*/
+      || ExceptionInfo->ExceptionRecord->ExceptionCode ==
+             0xE06D7363 /*C++ exception*/
+      || ExceptionInfo->ExceptionRecord->ExceptionCode ==
+             RPC_S_SERVER_UNAVAILABLE) {
     result = EXCEPTION_CONTINUE_SEARCH;
   } else {
     atomic_namespace::unique_lock<atomic_namespace::recursive_mutex> const
@@ -2205,7 +2199,7 @@ public:
   Overlapped() : OVERLAPPED() {}
   virtual int /* > 0 if re-queue requested, = 0 if no re-queue but no
                  destruction, < 0 if destruction requested */
-              operator()(size_t const size, uintptr_t const /*key*/) = 0;
+  operator()(size_t const size, uintptr_t const /*key*/) = 0;
   long long offset() const {
     return (static_cast<long long>(this->OVERLAPPED::OffsetHigh)
             << (CHAR_BIT * sizeof(this->OVERLAPPED::Offset))) |
@@ -6768,19 +6762,19 @@ public:
         switch (SubItem) {
         case COLUMN_INDEX_CREATION_TIME:
           if (base->variation & 0x1) {
-            result.second = ((static_cast<unsigned long long>(key.frs())
-                              << (sizeof(unsigned int) * CHAR_BIT)) |
-                             (static_cast<unsigned long long>(
-                                  /* complemented because we grew our
-                                     singly-linked list backwards */
-                                  ~key.name_info() &
-                                  ((1U << key_type::name_info_bits) - 1))
-                              << key_type::stream_info_bits) |
-                             (static_cast<unsigned long long>(
-                                 /* complemented because we grew our
-                                    singly-linked list backwards */
-                                 ~key.stream_info() &
-                                 ((1U << key_type::stream_info_bits) - 1))));
+            result.second =
+                ((static_cast<unsigned long long>(key.frs())
+                  << (sizeof(unsigned int) * CHAR_BIT)) |
+                 (static_cast<unsigned long long>(
+                      /* complemented because we grew our
+                         singly-linked list backwards */
+                      ~key.name_info() & ((1U << key_type::name_info_bits) - 1))
+                  << key_type::stream_info_bits) |
+                 (static_cast<unsigned long long>(
+                     /* complemented because we grew our
+                        singly-linked list backwards */
+                     ~key.stream_info() &
+                     ((1U << key_type::stream_info_bits) - 1))));
           } else {
             result.second = info.created;
           }
@@ -9299,6 +9293,34 @@ int _tmain(int argc, TCHAR *argv[]) {
     return extraction_result.first;
   }
   int result;
+  if (argc > 1 && _tcsicmp(argv[1], _T("-install-service")) == 0) {
+    SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (schSCManager) {
+      TCHAR szPath[MAX_PATH];
+      GetModuleFileName(NULL, szPath, MAX_PATH);
+      SC_HANDLE schService = CreateService(
+          schSCManager, _T("SwiftSearchService"), _T("SwiftSearch Service"),
+          SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
+          SERVICE_ERROR_NORMAL, szPath, NULL, NULL, NULL, NULL, NULL);
+      if (schService)
+        CloseServiceHandle(schService);
+      CloseServiceHandle(schSCManager);
+    }
+    return 0;
+  }
+  if (argc > 1 && _tcsicmp(argv[1], _T("-uninstall-service")) == 0) {
+    SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (schSCManager) {
+      SC_HANDLE schService =
+          OpenService(schSCManager, _T("SwiftSearchService"), DELETE);
+      if (schService) {
+        DeleteService(schService);
+        CloseServiceHandle(schService);
+      }
+      CloseServiceHandle(schSCManager);
+    }
+    return 0;
+  }
   if (argc <= 1) {
     _ftprintf(stderr, _T("No arguments specified.\n"));
     result = 0;
