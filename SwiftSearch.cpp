@@ -85,7 +85,6 @@ extern WTL::CAppModule _Module;
 #include "USNJournalMonitor.hpp"
 #include "string_matcher.hpp"
 
-
 #include "resource.h"
 
 #ifdef __clang__
@@ -9322,6 +9321,11 @@ int _tmain(int argc, TCHAR *argv[]) {
       }
       CloseServiceHandle(schSCManager);
     }
+    return 0;
+  }
+  if (argc > 1 && _tcsicmp(argv[1], _T("-http-server")) == 0) {
+    HttpServer server(8080);
+    server.run();
     return 0;
   }
   if (argc <= 1) {
