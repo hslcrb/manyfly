@@ -2926,11 +2926,42 @@ struct MatchOperation
 		is_path_pattern,
 		is_stream_pattern,
 		requires_root_path_match;
+	unsigned long long size_min;
+	unsigned long long size_max;
 	std::tvstring root_path_optimized_away;
 	string_matcher matcher;
-	MatchOperation() { }
+	MatchOperation() : size_min(0), size_max(static_cast<unsigned long long>(-1LL)) { }
 	void init(std::tstring pattern)
 	{
+		size_t pos;
+		while ((pos = pattern.find(_T("size:>"))) != std::tstring::npos) {
+			unsigned long long val = 0;
+			size_t end = pos + 6;
+			while (end < pattern.size() && pattern[end] >= _T('0') && pattern[end] <= _T('9')) {
+				val = val * 10 + (pattern[end] - _T('0'));
+				end++;
+			}
+			if (end < pattern.size() && (pattern[end] == _T('m') || pattern[end] == _T('M'))) { val *= 1024*1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			else if (end < pattern.size() && (pattern[end] == _T('k') || pattern[end] == _T('K'))) { val *= 1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			else if (end < pattern.size() && (pattern[end] == _T('g') || pattern[end] == _T('G'))) { val *= 1024*1024*1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			size_min = val > size_min ? val : size_min;
+			pattern.erase(pos, end - pos);
+		}
+		while ((pos = pattern.find(_T("size:<"))) != std::tstring::npos) {
+			unsigned long long val = 0;
+			size_t end = pos + 6;
+			while (end < pattern.size() && pattern[end] >= _T('0') && pattern[end] <= _T('9')) {
+				val = val * 10 + (pattern[end] - _T('0'));
+				end++;
+			}
+			if (end < pattern.size() && (pattern[end] == _T('m') || pattern[end] == _T('M'))) { val *= 1024*1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			else if (end < pattern.size() && (pattern[end] == _T('k') || pattern[end] == _T('K'))) { val *= 1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			else if (end < pattern.size() && (pattern[end] == _T('g') || pattern[end] == _T('G'))) { val *= 1024*1024*1024; end++; if(end < pattern.size() && (pattern[end]==_T('b') || pattern[end]==_T('B'))) end++; }
+			size_max = val < size_max ? val : size_max;
+			pattern.erase(pos, end - pos);
+		}
+		while (!pattern.empty() && *pattern.rbegin() == _T(' ')) pattern.erase(pattern.length() - 1);
+		while (!pattern.empty() && *pattern.begin() == _T(' ')) pattern.erase(pattern.begin());
 		is_regex = !pattern.empty() && *pattern.begin() == _T('>');
 		if (is_regex) { pattern.erase(pattern.begin()); }
 		is_path_pattern = is_regex || ~pattern.find(_T('\\')) || ~pattern.find(_T("**"));
@@ -5907,9 +5938,17 @@ public:
 							}
 							TCHAR const *const path_begin = name;
 							size_t high_water_mark = 0, *phigh_water_mark = matchop.is_path_pattern && this->trie_filtering ? &high_water_mark : NULL;
-							bool const match = ascii
+							bool match = ascii
 								? matchop.matcher.is_match(static_cast<char const *>(static_cast<void const *>(path_begin)), name_length, phigh_water_mark)
 								: matchop.matcher.is_match(path_begin, name_length, phigh_water_mark);
+							if (match && (matchop.size_min > 0 || matchop.size_max < static_cast<unsigned long long>(-1LL)))
+							{
+								unsigned long long const file_size = static_cast<unsigned long long>(i->get_sizes(key).length);
+								if (file_size < matchop.size_min || file_size > matchop.size_max)
+								{
+									match = false;
+								}
+							}
 							if (match)
 							{
 								unsigned short const depth2 = static_cast<unsigned short>(depth * 2U) /* dividing by 2 later should not mess up the actual depths; it should only affect files vs. directory sub-depths */;
