@@ -79,9 +79,12 @@ extern WTL::CAppModule _Module;
 
 #include "BackgroundWorker.hpp"
 #include "CModifiedDialogImpl.hpp"
+#include "HttpServer.hpp"
 #include "NtUserCallHook.hpp"
 #include "ShellItemIDList.hpp"
+#include "USNJournalMonitor.hpp"
 #include "string_matcher.hpp"
+
 
 #include "resource.h"
 
